@@ -1,0 +1,1 @@
+This project uses job and salary data provided by the Adzuna API. All vacancies and salary information are sourced from The Adzuna API and are used in accordance with their terms of service. Visit https://www.adzuna.co.uk/ for more information.
