@@ -3,8 +3,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
+from django.shortcuts import render
 from .models import Job
 from .serializers import JobListSerializer
+
+
+def job_list_html(request):
+    return render(request, "jobs/job_list.html")
 
 
 @api_view(["GET"])
