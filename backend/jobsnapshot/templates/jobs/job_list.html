@@ -1,0 +1,323 @@
+<!-- jobsnapshot/templates/jobs/job_list.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JobOrbit - Jobs with Accommodation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .country-filter {
+            margin-bottom: 20px;
+        }
+        
+        .country-btn {
+            padding: 8px 16px;
+            margin-right: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .country-btn:hover {
+            background: #0056b3;
+        }
+        
+        .job-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .job-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .job-company {
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .job-details {
+            display: flex;
+            gap: 20px;
+            margin: 10px 0;
+            font-size: 14px;
+            color: #555;
+        }
+        
+        .job-salary {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .btn-accommodation {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .btn-accommodation:hover {
+            background: #218838;
+        }
+        
+        .accommodation-panel {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .accommodation-panel.show {
+            display: block;
+        }
+        
+        .listing-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .listing-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .listing-price {
+            color: #28a745;
+        }
+        
+        .loading {
+            color: #666;
+            font-style: italic;
+            padding: 10px;
+        }
+        
+        .error {
+            color: #dc3545;
+            padding: 10px;
+        }
+        
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .pagination a {
+            margin: 0 5px;
+            padding: 5px 10px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 JobOrbit - Find Jobs & Accommodation</h1>
+        
+        <div class="country-filter">
+            <button class="country-btn" data-country="gb">🇬🇧 UK</button>
+            <button class="country-btn" data-country="us">🇺🇸 USA</button>
+            <button class="country-btn" data-country="de">🇩🇪 Germany</button>
+            <button class="country-btn" data-country="fr">🇫🇷 France</button>
+            <button class="country-btn" data-country="ca">🇨🇦 Canada</button>
+        </div>
+        
+        <div id="jobs-container">
+            <div class="loading">Loading jobs...</div>
+        </div>
+        
+        <div id="pagination" class="pagination"></div>
+    </div>
+    
+    <script>
+        let currentCountry = 'gb';
+        let currentPage = 1;
+        const pageSize = 10;
+        
+        async function loadJobs() {
+            const container = document.getElementById('jobs-container');
+            container.innerHTML = '<div class="loading">Loading jobs...</div>';
+            
+            try {
+                const url = `/api/jobs/${currentCountry}/`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                displayJobs(data.results);
+                setupPagination(data.count);
+            } catch (error) {
+                container.innerHTML = `<div class="error">Error loading jobs: ${error.message}</div>`;
+            }
+        }
+        
+        function displayJobs(jobs) {
+            const container = document.getElementById('jobs-container');
+            
+            // Paginate on frontend
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageJobs = jobs.slice(start, end);
+            
+            container.innerHTML = '';
+            
+            pageJobs.forEach(job => {
+                const jobCard = document.createElement('div');
+                jobCard.className = 'job-card';
+                jobCard.innerHTML = `
+                    <div class="job-title">${job.title || 'N/A'}</div>
+                    <div class="job-company">🏢 ${job.company_display_name || 'Unknown'}</div>
+                    <div class="job-details">
+                        <span>📍 ${job.enriched_city || 'Unknown'}, ${job.enriched_country_code || ''}</span>
+                        <span class="job-salary">💰 ${formatSalary(job.salary_min, job.salary_max)}</span>
+                    </div>
+                    <div class="job-details">
+                        <span>📋 ${job.contract_type || 'Not specified'}</span>
+                        <span>🏷️ ${job.category_label || 'Uncategorized'}</span>
+                    </div>
+                    <div class="job-description">${truncateDescription(job.description || 'No description available')}</div>
+                    <button class="btn-accommodation" onclick="loadAccommodations('${job.enriched_city}', ${job.id})">
+                        🏠 Find Airbnb in ${job.enriched_city || 'this city'}
+                    </button>
+                    <div id="accommodations-${job.id}" class="accommodation-panel"></div>
+                `;
+                container.appendChild(jobCard);
+            });
+        }
+        
+        function formatSalary(min, max) {
+            if (min && max && min > 0) {
+                return `£${min.toLocaleString()} - £${max.toLocaleString()}`;
+            } else if (max) {
+                return `Up to £${max.toLocaleString()}`;
+            } else {
+                return 'Salary not specified';
+            }
+        }
+        
+        function truncateDescription(text, maxLength = 150) {
+            if (text.length <= maxLength) return text;
+            return text.substring(0, maxLength) + '...';
+        }
+        
+        async function loadAccommodations(city, jobId) {
+            const panel = document.getElementById(`accommodations-${jobId}`);
+            const button = event.target;
+            
+            if (!city) {
+                panel.innerHTML = '<div class="error">No city information for this job</div>';
+                panel.classList.add('show');
+                return;
+            }
+            
+            panel.innerHTML = '<div class="loading">🔍 Searching Airbnb in ' + city + '...</div>';
+            panel.classList.add('show');
+            button.disabled = true;
+            
+            try {
+                const response = await fetch(`/api/jobs/accommodations/${encodeURIComponent(city)}/`);
+                const data = await response.json();
+                
+                if (data.listings && data.listings.results && data.listings.results.length) {
+                    displayListings(panel, data.listings.results, city);
+                } else {
+                    panel.innerHTML = `<div class="error">⚠️ No Airbnb listings found for ${city}</div>`;
+                }
+            } catch (error) {
+                panel.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                button.disabled = false;
+            }
+        }
+        
+        function displayListings(panel, listings, city) {
+            let html = `<h4>🏠 Airbnb accommodations in ${city} (${listings.length} found)</h4>`;
+            
+            listings.slice(0, 5).forEach(listing => {
+                html += `
+                    <div class="listing-card">
+                        <div class="listing-name">${listing.name || 'Property'}</div>
+                        ${listing.price ? `<div class="listing-price">💰 ${listing.price}</div>` : ''}
+                        ${listing.rating ? `<div>⭐ Rating: ${listing.rating}</div>` : ''}
+                        ${listing.url ? `<a href="${listing.url}" target="_blank">View on Airbnb →</a>` : ''}
+                    </div>
+                `;
+            });
+            
+            if (listings.length > 5) {
+                html += `<div>... and ${listings.length - 5} more listings</div>`;
+            }
+            
+            panel.innerHTML = html;
+        }
+        
+        function setupPagination(totalJobs) {
+            const totalPages = Math.ceil(totalJobs / pageSize);
+            const paginationDiv = document.getElementById('pagination');
+            
+            if (totalPages <= 1) {
+                paginationDiv.innerHTML = '';
+                return;
+            }
+            
+            let html = '';
+            for (let i = 1; i <= Math.min(totalPages, 10); i++) {
+                html += `<a href="#" onclick="goToPage(${i}); return false;" style="${i === currentPage ? 'background: #28a745;' : ''}">${i}</a>`;
+            }
+            paginationDiv.innerHTML = html;
+        }
+        
+        function goToPage(page) {
+            currentPage = page;
+            loadJobs();
+        }
+        
+        // Country filter buttons
+        document.querySelectorAll('.country-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentCountry = btn.dataset.country;
+                currentPage = 1;
+                loadJobs();
+            });
+        });
+        
+        // Initial load
+        loadJobs();
+    </script>
+</body>
+</html>

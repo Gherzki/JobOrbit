@@ -1,0 +1,201 @@
+<!-- jobsnapshot/templates/rest_framework/api.html -->
+{% extends "rest_framework/api.html" %}
+
+{% block content %}
+  {{ block.super }}
+  
+  <style>
+    .btn-accommodation {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 4px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-left: 10px;
+      transition: background-color 0.3s;
+    }
+    .btn-accommodation:hover {
+      background-color: #45a049;
+    }
+    .accommodation-panel {
+      background: #f9f9f9;
+      border-left: 4px solid #4CAF50;
+      margin-top: 10px;
+      padding: 10px;
+      display: none;
+    }
+    .accommodation-panel.show {
+      display: block;
+    }
+    .listing-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      margin: 10px 0;
+      background: white;
+    }
+    .loading {
+      color: #666;
+      font-style: italic;
+    }
+  </style>
+  
+  <script>
+    // Function to fetch accommodations for a city
+    async function fetchAccommodations(city, jobId, rowElement) {
+      const panel = document.getElementById(`accommodations-${jobId}`);
+      const button = document.getElementById(`btn-${jobId}`);
+      
+      // Show loading
+      panel.innerHTML = '<div class="loading">🔍 Searching Airbnb in ' + city + '...</div>';
+      panel.classList.add('show');
+      button.textContent = 'Loading...';
+      button.disabled = true;
+      
+      try {
+        // Call your Django backend (which will use cache)
+        const response = await fetch(`/api/jobs/accommodations/${encodeURIComponent(city)}/`);
+        const data = await response.json();
+        
+        if (data.listings && data.listings.results) {
+          displayListings(panel, data.listings.results, city);
+        } else {
+          panel.innerHTML = `<div>⚠️ No Airbnb listings found for ${city}</div>`;
+        }
+        
+        button.textContent = '🏠 Show Accommodation';
+        button.disabled = false;
+        
+      } catch (error) {
+        panel.innerHTML = `<div>❌ Error: ${error.message}</div>`;
+        button.textContent = '🏠 Retry';
+        button.disabled = false;
+      }
+    }
+    
+    // Display Airbnb listings
+    function displayListings(panel, listings, city) {
+      if (!listings.length) {
+        panel.innerHTML = `<div>⚠️ No Airbnb listings found for ${city}</div>`;
+        return;
+      }
+      
+      let html = `<h4>🏠 Airbnb in ${city} (${listings.length} listings)</h4>`;
+      
+      listings.slice(0, 5).forEach(listing => {
+        html += `
+          <div class="listing-card">
+            <strong>${listing.name || 'Property'}</strong><br>
+            ${listing.price ? `💰 Price: ${listing.price}<br>` : ''}
+            ${listing.rating ? `⭐ Rating: ${listing.rating}<br>` : ''}
+            ${listing.url ? `<a href="${listing.url}" target="_blank">View on Airbnb →</a>` : ''}
+          </div>
+        `;
+      });
+      
+      if (listings.length > 5) {
+        html += `<div>... and ${listings.length - 5} more listings</div>`;
+      }
+      
+      panel.innerHTML = html;
+    }
+    
+    // Add buttons after page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(addButtonsToResults, 500); // Small delay for DRF rendering
+    });
+    
+    function addButtonsToResults() {
+      // Find the results table in DRF's browsable API
+      const responseElement = document.querySelector('.response');
+      if (!responseElement) return;
+      
+      // Look for JSON response display or table
+      const preElement = responseElement.querySelector('pre');
+      if (preElement) {
+        // For JSON view, we need to parse and add buttons
+        try {
+          const jsonData = JSON.parse(preElement.textContent);
+          if (jsonData.results && jsonData.results.length) {
+            addButtonsToJSONView(jsonData.results);
+          }
+        } catch(e) {
+          console.log('Could not parse JSON');
+        }
+      }
+    }
+    
+    function addButtonsToJSONView(jobs) {
+      // Find the response container
+      const responseDiv = document.querySelector('.response');
+      if (!responseDiv) return;
+      
+      // For each job, create a button panel
+      jobs.forEach((job, index) => {
+        if (!job.enriched_city) return;
+        
+        // Create a wrapper for this job's button and panel
+        const jobSection = document.createElement('div');
+        jobSection.className = 'job-section';
+        jobSection.style.marginBottom = '20px';
+        jobSection.style.borderBottom = '1px solid #eee';
+        jobSection.style.paddingBottom = '10px';
+        
+        // Create button
+        const button = document.createElement('button');
+        button.id = `btn-${job.id}`;
+        button.textContent = `🏠 Find Airbnb in ${job.enriched_city}`;
+        button.className = 'btn-accommodation';
+        button.onclick = () => fetchAccommodations(job.enriched_city, job.id, null);
+        
+        // Create panel for results
+        const panel = document.createElement('div');
+        panel.id = `accommodations-${job.id}`;
+        panel.className = 'accommodation-panel';
+        
+        jobSection.appendChild(button);
+        jobSection.appendChild(panel);
+        
+        // Insert after the job's JSON representation
+        responseDiv.appendChild(jobSection);
+      });
+    }
+    
+    // Also add buttons to the HTML table view if present
+    function addButtonsToTableView() {
+      const rows = document.querySelectorAll('.response .results tbody tr');
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 3) {
+          // Try to find city from the row data
+          const cityCell = Array.from(cells).find(cell => 
+            cell.textContent.includes('Bristol') || 
+            cell.textContent.includes('London') ||
+            cell.textContent.includes('Manchester')
+          );
+          
+          if (cityCell) {
+            const city = cityCell.textContent.trim();
+            const jobId = cells[0].textContent.trim();
+            
+            const actionCell = row.insertCell(-1);
+            const button = document.createElement('button');
+            button.textContent = `🏠 Airbnb in ${city}`;
+            button.className = 'btn-accommodation';
+            button.onclick = () => fetchAccommodations(city, jobId, null);
+            actionCell.appendChild(button);
+            
+            // Create panel row
+            const panelRow = row.insertAdjacentElement('afterend', document.createElement('tr'));
+            const panelCell = panelRow.insertCell(0);
+            panelCell.colSpan = cells.length + 1;
+            panelCell.id = `accommodations-${jobId}`;
+            panelCell.className = 'accommodation-panel';
+          }
+        }
+      });
+    }
+  </script>
+{% endblock %}
