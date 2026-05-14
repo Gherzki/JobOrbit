@@ -68,3 +68,19 @@ class Job(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.company_display_name}"
+
+
+class AirbnbCache(models.Model):
+    city = models.CharField(max_length=100, unique=True, db_index=True)
+    country_code = models.CharField(max_length=5, blank=True)
+    listings = models.JSONField(default=dict)  # Full Airbnb response
+    fetched_at = models.DateTimeField(auto_now_add=True)
+
+    def is_fresh(self):
+        """Cache is fresh for 7 days"""
+        from django.utils import timezone
+
+        return (timezone.now() - self.fetched_at).days < 7
+
+    def __str__(self):
+        return f"Airbnb cache for {self.city}"
