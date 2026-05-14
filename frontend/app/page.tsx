@@ -1,14 +1,29 @@
 'use client';
 import {useState} from "react";
 import Search from "./components/Search/Search";
+import Backend from "../utils/Backend.js";
 
 export default function Home() {
     const [searchValue, setSearchValue] = useState('');
+    const [jobs, setJobs] = useState(null);
+
+    // This is used to connect to the backend.
+    const backend = new Backend();
+
+    async function searchJobs(query: string) {
+      // Setting the search value.
+      setSearchValue(query);
+
+      // Setting the jobs.
+      const retrieved_jobs = await backend.jobs();
+      setJobs(retrieved_jobs);
+      console.log(retrieved_jobs);
+    }
 
     const handleSearch = (value: string) => {
-        // Here, you can access the search value when Enter is pressed
-        console.log(value);
-        setSearchValue(value);
+      // Here, you can access the search value when Enter is pressed
+      console.log(value);
+      searchJobs(value);
     };
 
   return (
