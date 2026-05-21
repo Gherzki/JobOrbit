@@ -1,6 +1,7 @@
 'use client';
 import {useState} from "react";
 import Search from "./components/Search";
+import CountryDropdown from "./components/CountryDropdown";
 
 export default function Home() {
     const [searchValue, setSearchValue] = useState('');
