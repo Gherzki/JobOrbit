@@ -21,7 +21,7 @@ load_dotenv(BASE_DIR / ".env")
 
 ADZUNA_APP_ID = os.getenv("ADZUNA_APP_ID")
 ADZUNA_APP_KEY = os.getenv("ADZUNA_APP_KEY")
-SEARCHAPI_API_KEY = os.getenv("SEARCH_API_KEY")
+SEARCHAPI_API_KEY = os.getenv("SEARCHAPI_API_KEY")
 
 
 # Quick-start development settings - unsuitable for production
