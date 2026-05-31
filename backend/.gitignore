@@ -1,2 +1,18 @@
+# Secrets
+.env
 
+# Python
 __pycache__/
+*.pyc
+
+# Database
+db.sqlite3
+
+# Django
+*.log
+*.pot
+*.pyc
+local_settings.py
+
+# Backend specific
+backend/.env

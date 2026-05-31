@@ -250,7 +250,7 @@
             button.disabled = true;
             
             try {
-                const response = await fetch(`/api/jobs/accommodations/${encodeURIComponent(city)}/`);
+                const response = await fetch(`/api/accommodations/${encodeURIComponent(city)}/`);
                 const data = await response.json();
                 
                 if (data.listings && data.listings.results && data.listings.results.length) {

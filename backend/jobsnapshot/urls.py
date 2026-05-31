@@ -8,9 +8,4 @@ urlpatterns = [
     path(
         "<str:country>/", views.jobs_by_country, name="jobs_by_country"
     ),  # GET /api/jobs/gb/
-    path(
-        "accommodations/<str:city>/",
-        views.accommodations_by_city,
-        name="accommodations_by_city",
-    ),
 ]
