@@ -7,43 +7,83 @@ export type SearchProps = {
 
 const Search = (props: SearchProps) => {
     const { onSearch } = props;
-    const [value, setValue] = useState('Search for available job hirings...');
+    const [value, setValue] = useState('');
+    const [focused, setFocused] = useState(false);
 
     const searchHandler = (event: ChangeEvent<HTMLInputElement>) => {
-        const { target } = event;
-        setValue(target.value);
+        setValue(event.target.value);
     };
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter') {
-            // Here, we call the onSearch function and pass the value
             onSearch(value);
         }
     };
 
     return (
-        <div className="relative w-full text-gray-600">
+        <div
+            className={`
+                relative w-full group
+                rounded-2xl
+                transition-all duration-300
+                ${focused
+                    ? 'shadow-[0_0_0_2px_#f59e0b] bg-slate-800'
+                    : 'shadow-[0_0_0_1px_#334155] bg-slate-800/60 hover:bg-slate-800 hover:shadow-[0_0_0_1px_#475569]'
+                }
+            `}
+        >
+            {/* Search icon — left side */}
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg
+                    className={`w-4 h-4 transition-colors duration-200 ${focused ? 'text-amber-400' : 'text-slate-500'}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+            </div>
+
             <input
                 type="search"
                 name="search"
-                placeholder={value}
-                className="bg-white h-10 px-5 pr-10 w-full rounded-full text-sm focus:outline-none"
-                onChange={(event) => searchHandler(event)}
+                value={value}
+                placeholder="Search roles, companies, skills..."
+                className="
+                    w-full h-13 pl-11 pr-28 py-4
+                    bg-transparent
+                    text-slate-100 placeholder-slate-500
+                    text-sm tracking-wide
+                    focus:outline-none
+                    rounded-2xl
+                "
+                onChange={searchHandler}
                 onKeyDown={handleKeyDown}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
             />
-            <button type="submit" className="absolute right-0 top-0 mt-3 mr-4">
-                <svg
-                    className="h-4 w-4 fill-current"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
+
+            {/* Enter to search pill */}
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <button
+                    type="button"
+                    onClick={() => onSearch(value)}
+                    className="
+                        flex items-center gap-1.5
+                        px-3 py-1.5
+                        rounded-lg
+                        bg-amber-400 hover:bg-amber-300
+                        text-slate-900 font-semibold text-xs tracking-wide
+                        transition-all duration-150
+                        active:scale-95
+                        shadow-sm
+                    "
                 >
-                    <path
-                        fillRule="evenodd"
-                        d="M13.53 14.47a8 8 0 111.414-1.414l3.96 3.96a1 1 0 01-1.414 1.414l-3.96-3.96zM8 14a6 6 0 100-12 6 6 0 000 12z"
-                        clipRule="evenodd"
-                    />
-                </svg>
-            </button>
+                    Search
+                    <kbd className="text-slate-700 font-mono text-[10px] hidden sm:inline">↵</kbd>
+                </button>
+            </div>
         </div>
     );
 };
