@@ -6,7 +6,8 @@ import Job from "./Job.js"
 /**
  * Represents the backend to be connected to.
  */
-export default class Backend {
+class Backend {
+
     /**
      * Represents the backend to be connected to.
      * 
@@ -49,4 +50,9 @@ export default class Backend {
         }
     }
 }
+
+
+// This creates a Singleton object for Backend.
+const backend = new Backend()
+export default backend
 
