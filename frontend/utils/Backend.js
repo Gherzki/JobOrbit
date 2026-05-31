@@ -27,15 +27,18 @@ export default class Backend {
      * An asynchronous function that returns all jobs.
      *
      * If the backend API returns multiple jobs, then the function
-     * returns a list of {@link Job} objects.
+     * returns a {@link Promise} object containing a list of {@link Job} 
+     * objects.
      * 
      * If the backend API returns a single job, then the function
-     * returns the {@link Job} object itself.
+     * returns a {@link Promise} object containing the {@link Job} 
+     * object itself.
      * 
      * If the backend API does not return any jobs (that is, no job
-     * was found), then the function returns null.
+     * was found), then the function returns a {@link Promise} object
+     * containing null.
      *
-     * @returns {Job[] | Job | null} The jobs from the backend API.
+     * @returns {Promise<Job[]> | Promise<Job> | Promise<null>} The jobs from the backend API.
      */
     async jobs() {
         const url = `${this.url}/api/jobs/`
