@@ -25,7 +25,17 @@ export default class Backend {
 
     /**
      * An asynchronous function that returns all jobs.
-     * @returns A list of jobs if successful; null otherwise.
+     *
+     * If the backend API returns multiple jobs, then the function
+     * returns a list of {@link Job} objects.
+     * 
+     * If the backend API returns a single job, then the function
+     * returns the {@link Job} object itself.
+     * 
+     * If the backend API does not return any jobs (that is, no job
+     * was found), then the function returns null.
+     *
+     * @returns {Job[] | Job | null} The jobs from the backend API.
      */
     async jobs() {
         const url = `${this.url}/api/jobs/`
@@ -36,7 +46,10 @@ export default class Backend {
 
             const json = await response.json();
             const jobs = json["results"]
-            return Job.from(jobs)
+
+            if (jobs.length === 0)
+                return null;
+            return Job.from(jobs);
         } catch (error) {
             console.log(error);
             return null;
