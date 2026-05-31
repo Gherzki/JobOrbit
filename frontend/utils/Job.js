@@ -10,7 +10,7 @@ export default class Job {
      * @param {object} data 
      */
     constructor(data) {
-        this.id = data["id"]
+        this.id = parseInt(data["id"])
         this.adzuna_id = data["adzuna_id"]
 
         this.title = data["title"]
@@ -18,17 +18,20 @@ export default class Job {
         this.location = data["location_display_name"]
         this.location_areas = data["location_area"]
         this.city = data["enriched_city"]
-        this.countryName = data["enriched_country_name"]
+        this.country = data["enriched_country_name"]
         this.countryCode = data["enriched_country_code"]
         
-        this.minSalary = data["salary_min"]
-        this.maxSalary = data["salary_max"]
+        const clean_float = number => number instanceof String ? parseFloat(number) : 0;
+        this.salaryMin = clean_float(data["salary_min"])
+        this.salaryMax = clean_float(data["salary_max"])
         
         this.contractType = data["contract_type"]
         this.category = data["category_label"]
         this.description = data["description"]
         this.redirect_url = data["redirect_url"]
         this.created = new Date(data["created"])
+        
+        this.tags = []
     }
     
     /**
