@@ -42,7 +42,7 @@ export default class Backend {
                 return [];
             if (jobs.length === 1)
                 return [new Job(jobs[0])]
-            return Job.from(jobs);
+            return Job.from(...jobs);
         } catch (error) {
             console.log(error);
             return null;
