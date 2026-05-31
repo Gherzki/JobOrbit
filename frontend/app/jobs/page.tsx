@@ -1,8 +1,10 @@
 'use client';
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
-import clsx from 'clsx'
-import { Fragment, useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
+import CountryDropdown from '../components/CountryDropdown'
+import { getFlag } from '../components/Countries'
+import SalaryDropdown, { SALARY_RANGES } from '../components/SalaryDropdown'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Job = {
@@ -75,100 +77,36 @@ const JOBS: Job[] = [
   },
 ]
 
-const COUNTRIES = ['All Countries', 'Philippines', 'United Kingdom', 'Germany', 'France', 'Canada', 'United States']
-const SALARY_RANGES = [
-  { label: 'Any Salary', min: 0, max: Infinity },
-  { label: '₱0 – ₱10,000', min: 0, max: 10000 },
-  { label: '₱10,000 – ₱50,000', min: 10000, max: 50000 },
-  { label: '₱50,000 – ₱100,000', min: 50000, max: 100000 },
-  { label: '₱100,000+', min: 100000, max: Infinity },
-]
-
-// ── Small reusable dropdown ──────────────────────────────────────────────────
-function Dropdown<T extends string>({
-  options,
-  value,
-  onChange,
-  icon,
-}: {
-  options: T[]
-  value: T
-  onChange: (v: T) => void
-  icon?: React.ReactNode
-}) {
-  return (
-    <Menu as="div" className="relative inline-block text-left">
-      <MenuButton className="
-        inline-flex items-center gap-2 px-4 py-3
-        rounded-xl bg-slate-800/60 hover:bg-slate-800
-        border border-slate-700 hover:border-slate-500
-        text-sm font-medium text-slate-300 hover:text-slate-100
-        transition-all duration-150
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400
-        whitespace-nowrap
-      ">
-        {icon}
-        <span className="max-w-[140px] truncate">{value}</span>
-        <svg className="w-3 h-3 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-        </svg>
-      </MenuButton>
-      <MenuItems
-        anchor="bottom start"
-        className="
-          z-50 mt-2 min-w-[180px]
-          rounded-2xl bg-slate-900
-          border border-slate-700/80
-          shadow-2xl shadow-black/40
-          p-1.5 focus:outline-none
-          transition data-[closed]:scale-95 data-[closed]:opacity-0
-          data-[enter]:duration-100 data-[leave]:duration-75
-        "
-      >
-        <div className="px-3 py-1.5 mb-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Select</p>
-        </div>
-        <div className="h-px bg-slate-700/60 mx-1 mb-1" />
-        {options.map((opt) => (
-          <MenuItem key={opt} as={Fragment}>
-            {({ focus }) => (
-              <button
-                onClick={() => onChange(opt)}
-                className={clsx(
-                  'flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-left',
-                  'text-sm font-medium transition-colors duration-100',
-                  focus ? 'bg-amber-400/10 text-amber-300' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800',
-                  value === opt && 'text-amber-400'
-                )}
-              >
-                {value === opt && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-                )}
-                {value !== opt && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-700 flex-shrink-0" />
-                )}
-                <span className="truncate">{opt}</span>
-              </button>
-            )}
-          </MenuItem>
-        ))}
-      </MenuItems>
-    </Menu>
-  )
-}
-
 // ── Job card ─────────────────────────────────────────────────────────────────
 function JobCard({ job }: { job: Job }) {
+  const router = useRouter()
+
+  const handleClick = () => {
+    const params = new URLSearchParams({
+      jobTitle:       job.title,
+      jobCompany:     'JobOrbit Company',
+      jobCity:        job.city,
+      jobCountry:     job.country,
+      jobSalaryMin:   String(job.salaryMin),
+      jobSalaryMax:   String(job.salaryMax),
+      jobDescription: job.description,
+      jobTags:        job.tags.join(','),
+    })
+    router.push(`/accommodations?${params.toString()}`)
+  }
+
   return (
-    <article className="
-      group relative
-      bg-slate-900/60 hover:bg-slate-900
-      border border-slate-800 hover:border-slate-600
-      rounded-2xl p-6
-      transition-all duration-200
-      hover:shadow-xl hover:shadow-black/30
-      cursor-pointer
-    ">
+    <article
+      onClick={handleClick}
+      className="
+        group relative
+        bg-slate-900/60 hover:bg-slate-900
+        border border-slate-800 hover:border-slate-600
+        rounded-2xl p-6
+        transition-all duration-200
+        hover:shadow-xl hover:shadow-black/30
+        cursor-pointer
+      ">
       {/* Amber left-edge accent on hover */}
       <div className="
         absolute left-0 top-4 bottom-4 w-0.5 rounded-full
@@ -187,7 +125,7 @@ function JobCard({ job }: { job: Job }) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
             </svg>
-            <span className="text-xs text-slate-500">{job.city}, {job.country}</span>
+            <span className="text-xs text-slate-500">{getFlag(job.country)} {job.city}, {job.country}</span>
           </div>
         </div>
 
@@ -274,7 +212,6 @@ export default function JobPage() {
               <span className="text-slate-500 font-light"> | Jobs</span>
             </h1>
           </div>
-          {/* Result count badge */}
           <span className="
             px-3 py-1.5 rounded-xl
             bg-slate-800 border border-slate-700
@@ -312,17 +249,8 @@ export default function JobPage() {
             />
           </div>
 
-          {/* Country dropdown */}
-          <Dropdown
-            options={COUNTRIES as any}
-            value={country}
-            onChange={setCountry}
-            icon={
-              <svg className="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418" />
-              </svg>
-            }
-          />
+          {/* Country dropdown — using shared component */}
+          <CountryDropdown value={country} onChange={setCountry} />
 
           {/* Find button */}
           <button className="
@@ -363,17 +291,8 @@ export default function JobPage() {
             />
           </div>
 
-          {/* Salary range dropdown */}
-          <Dropdown
-            options={SALARY_RANGES.map((r) => r.label) as any}
-            value={salaryRange}
-            onChange={setSalaryRange}
-            icon={
-              <svg className="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75" />
-              </svg>
-            }
-          />
+          {/* Salary dropdown — using shared component */}
+          <SalaryDropdown value={salaryRange} onChange={setSalaryRange} />
         </div>
 
         {/* ── Job listings ── */}
