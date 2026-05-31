@@ -1,5 +1,8 @@
 
 
+import Job from "./Job.js"
+
+
 /**
  * Represents the backend to be connected to.
  */
@@ -32,7 +35,8 @@ export default class Backend {
                 throw new Error(`Response status: ${response.status}`);
 
             const json = await response.json();
-            return json;
+            const jobs = json["results"]
+            return Job.from(jobs)
         } catch (error) {
             console.log(error);
             return null;
