@@ -54,7 +54,7 @@ export default class Job {
         if (jobs.length === 0)
             throw new Error("A list of data must be passed to create Job objects.")
         if (jobs.length === 1)
-            return Job(jobs[0])
+            return new Job(jobs[0])
         
         return jobs.map(job => new Job(job))
     }
