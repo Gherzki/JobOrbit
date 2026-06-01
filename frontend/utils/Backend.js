@@ -1,5 +1,6 @@
 
 
+import Accommodation from "./Accommodation.js";
 import { CODE_BY_COUNTRY } from "./Country.js";
 import Job from "./Job.js"
 
@@ -121,6 +122,32 @@ class Backend {
         const jobs = await this.jobsFrom(countryCode);
         return jobs;
     }
+    
+    /**
+     * An asynchronous function that returns all accommodations in
+     * the given city.
+     * 
+     * @param {string} city The city to look for accommodations.
+     * @returns {Promise<Accommodation[]>} The list of accommodations 
+     *      from the city given by the backend API.
+     */
+    async accommodationsFrom(city) {
+        if (city === undefined)
+            throw new Error("City cannot be undefined.");
+        if (city === null)
+            throw new Error("City cannot be null.");
+        if (city === "")
+            throw new Error("City cannot be an empty string.");
+
+        const url = `${this.url}/api/accommodations/${city}/`;
+        const data = await this.#getDataFromAPI(url);
+        
+        if (data === null)
+            return [];
+        
+        const accommodations = data["listings"]["results"];
+        return this.#convertDataToAccommodationArray(accommodations);
+    }
 
     /**
      * Retrieves the data from the backend API.
@@ -156,11 +183,27 @@ class Backend {
      * @returns The list of {@link Job} objects.
      */
     #convertDataToJobArray(jobs) {
-        if (jobs === null || jobs.length === 0)
+        if (jobs == null || jobs.length === 0)
             return [];
         if (jobs.length === 1)
             return [new Job(jobs[0])]
         return Job.from(...jobs);
+    }
+    
+    /**
+     * Converts the data returned by the backend API to an array of {@link Accommodation} 
+     * objects.
+     * 
+     * @param {object[] | object | null} jobs The data returned by the backend API
+     *      when called about the list of jobs.
+     * @returns The list of {@link Accommodation} objects.
+     */
+    #convertDataToAccommodationArray(accommodations) {
+        if (accommodations == null || accommodations.length === 0)
+            return [];
+        if (accommodations.length === 1)
+            return [new Accommodation(accommodations[0])];
+        return Accommodation.from(...accommodations);
     }
 }
 
