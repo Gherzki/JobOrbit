@@ -128,13 +128,14 @@ export default function JobPage() {
   /**
    * Determines if the {@link Job} object satisfies the
    * filters set by the user.
-   * @param job The {@link Job} object to be checked.
-   * @returns The value true if it satisfies the filters;
+   *
+   * @param {Job} job The {@link Job} object to be checked.
+   * @returns {boolean} The value true if it satisfies the filters;
    *    the value false otherwise.
    */
   const is_relevant_job = (job: Job) => {
-    const matchTitle = job.title.toLowerCase().includes(titleQuery.toLowerCase())
-    const matchCity = job.city.toLowerCase().includes(cityQuery.toLowerCase())
+    const matchTitle = titleQuery.length === 0 || job.title.toLowerCase().includes(titleQuery.toLowerCase())
+    const matchCity = cityQuery.length === 0 || job.city.toLowerCase().includes(cityQuery.toLowerCase())
     const matchCountry = country === 'All Countries' || job.country === country
     const matchSalary = job.salaryMax >= activeSalary.min && job.salaryMin <= activeSalary.max
     return matchTitle && matchCity && matchCountry && matchSalary
@@ -142,8 +143,11 @@ export default function JobPage() {
   
   /**
    * Updates the list of filtered jobs based on the given filters.
+   * 
+   * @param {Job[]} jobs The array of {@link Job} objects to be filtered.
+   * @returns {Job[]} The filtered {@link Job} objects.
    */
-  const updateFilteredJobs = () => {
+  const updateFilteredJobs = (jobs: Job[]) => {
     const filteredJobs = jobs.filter(is_relevant_job)
     setFilteredJobs(filteredJobs)
   }
@@ -168,7 +172,7 @@ export default function JobPage() {
         if (jobs === null)
           throw new Error("Backend API returned null instead of a list of jobs.")
         setJobs(jobs)
-        updateFilteredJobs()
+        updateFilteredJobs(jobs)
       })
       .catch(error => {
         console.log(error)
@@ -250,7 +254,7 @@ export default function JobPage() {
             shadow-lg shadow-amber-500/20
             transition-all duration-150 active:scale-95
             flex-shrink-0
-          " onClick={() => { updateSearchParams(); updateFilteredJobs() }}>
+          " onClick={() => { updateSearchParams(); updateFilteredJobs(jobs) }}>
             Find
           </button>
         </div>

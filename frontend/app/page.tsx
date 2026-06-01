@@ -9,7 +9,6 @@ export default function Home() {
     const [searchValue, setSearchValue] = useState('');
 
     const handleSearch = (value: string) => {
-        if (!value.trim()) return;
         setSearchValue(value);
         router.push(`/jobs?q=${encodeURIComponent(value.trim())}`);
     };
