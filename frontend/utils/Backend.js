@@ -1,9 +1,13 @@
 
 
+import Job from "./Job.js"
+
+
 /**
  * Represents the backend to be connected to.
  */
-export default class Backend {
+class Backend {
+
     /**
      * Represents the backend to be connected to.
      * 
@@ -22,7 +26,8 @@ export default class Backend {
 
     /**
      * An asynchronous function that returns all jobs.
-     * @returns A list of jobs if successful; null otherwise.
+     *
+     * @returns {Promise<Job[]>} The list of jobs from the backend API.
      */
     async jobs() {
         const url = `${this.url}/api/jobs/`
@@ -32,11 +37,22 @@ export default class Backend {
                 throw new Error(`Response status: ${response.status}`);
 
             const json = await response.json();
-            return json;
+            const jobs = json["results"]
+
+            if (jobs.length === 0)
+                return [];
+            if (jobs.length === 1)
+                return [new Job(jobs[0])]
+            return Job.from(...jobs);
         } catch (error) {
             console.log(error);
             return null;
         }
     }
 }
+
+
+// This creates a Singleton object for Backend.
+const backend = new Backend()
+export default backend
 
