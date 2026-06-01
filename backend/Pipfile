@@ -9,6 +9,10 @@ djangorestframework = "*"
 requests = "*"
 django-cors-headers = "*"
 python-dotenv = "*"
+gunicorn = "*"
+dj-database-url = "*"
+whitenoise = "*"
+psycopg2-binary = "==2.9.9"
 
 [dev-packages]
 
