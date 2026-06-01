@@ -1,19 +1,30 @@
 # jobsnapshot/management/commands/fetch_jobs.py
+
 from django.core.management.base import BaseCommand
 from django.conf import settings
+from django.core.cache import cache
 from jobsnapshot.models import Job
 import requests
 import time
 
 
 class Command(BaseCommand):
-    help = "Fetch jobs from Adzuna API and enrich with BigDataCloud"
+    help = "Fetch jobs from Adzuna API and enrich with geolocation"
 
     def handle(self, *args, **options):
-        self.stdout.write("📸 Starting job fetch...")
+        # Prevent repeated execution on frequent deploys/restarts
+        if cache.get("jobs_fetched_lock"):
+            self.stdout.write("Jobs already fetched recently → skipping")
+            return
+
+        self.stdout.write("Starting job fetch...")
         self.fetch_all_jobs()
+
+        # lock for 24 hours
+        cache.set("jobs_fetched_lock", True, timeout=60 * 60 * 24)
+
         self.stdout.write(
-            self.style.SUCCESS(f"Complete! {Job.objects.count()} jobs saved")
+            self.style.SUCCESS(f"Done! Total jobs in DB: {Job.objects.count()}")
         )
 
     def fetch_all_jobs(self):
@@ -23,7 +34,7 @@ class Command(BaseCommand):
         app_key = settings.ADZUNA_APP_KEY
 
         for country_code in countries:
-            self.stdout.write(f"  → Fetching jobs for {country_code.upper()}...")
+            self.stdout.write(f"Fetching {country_code.upper()}...")
 
             response = requests.get(
                 f"https://api.adzuna.com/v1/api/jobs/{country_code}/search/1",
@@ -32,10 +43,11 @@ class Command(BaseCommand):
                     "app_key": app_key,
                     "results_per_page": 50,
                 },
+                timeout=10,
             )
 
             if response.status_code != 200:
-                self.stdout.write(f"API error: {response.status_code}")
+                self.stdout.write(f"API error {response.status_code}")
                 continue
 
             data = response.json()
@@ -45,51 +57,33 @@ class Command(BaseCommand):
                 lat = job.get("latitude")
                 lon = job.get("longitude")
 
-                # Reverse geocode to get city and country
                 geo_data = self.reverse_geocode(lat, lon)
 
-                # Extract nested data safely
                 company = job.get("company", {})
                 location = job.get("location", {})
                 category = job.get("category", {})
 
-                # Create or update job with ALL fields
                 Job.objects.update_or_create(
                     adzuna_id=job.get("id"),
                     defaults={
-                        # Core fields
                         "title": job.get("title", "")[:255],
                         "description": job.get("description", ""),
                         "redirect_url": job.get("redirect_url", ""),
                         "adref": job.get("adref", ""),
                         "created": job.get("created"),
-                        # Company
                         "company_display_name": company.get("display_name", "")[:255],
                         "company_raw": company,
-                        # Location
                         "location_display_name": location.get("display_name", "")[:255],
                         "location_area": location.get("area", []),
                         "latitude": lat,
                         "longitude": lon,
-                        # Salary
-                        "salary_min": (
-                            job.get("salary_min")
-                            if job.get("salary_min") != 0
-                            else None
-                        ),
-                        "salary_max": (
-                            job.get("salary_max")
-                            if job.get("salary_max") != 0
-                            else None
-                        ),
+                        "salary_min": job.get("salary_min") or None,
+                        "salary_max": job.get("salary_max") or None,
                         "salary_is_predicted": job.get("salary_is_predicted", ""),
-                        # Contract
                         "contract_type": job.get("contract_type", ""),
                         "contract_time": job.get("contract_time", ""),
-                        # Category
                         "category_tag": category.get("tag", ""),
                         "category_label": category.get("label", ""),
-                        # Enriched data from BigDataCloud
                         "enriched_city": geo_data.get("city", ""),
                         "enriched_country_name": geo_data.get("country_name", ""),
                         "enriched_locality": geo_data.get("locality", ""),
@@ -101,36 +95,39 @@ class Command(BaseCommand):
                 )
 
                 if (idx + 1) % 10 == 0:
-                    self.stdout.write(f"      Processed {idx+1}/{len(jobs)} jobs...")
+                    self.stdout.write(f"Processed {idx+1}/{len(jobs)}")
 
-            time.sleep(1)  # Rate limit protection
+            time.sleep(1)
 
     def reverse_geocode(self, lat, lon):
-        """Get city, country, and other location data from lat/lon"""
         if not lat or not lon:
             return {}
 
         try:
             response = requests.get(
                 "https://api.bigdatacloud.net/data/reverse-geocode-client",
-                params={"latitude": lat, "longitude": lon, "localityLanguage": "en"},
+                params={
+                    "latitude": lat,
+                    "longitude": lon,
+                    "localityLanguage": "en",
+                },
                 timeout=5,
             )
 
-            if response.status_code == 200:
-                data = response.json()
-                return {
-                    "city": data.get("city")
-                    or data.get("locality")
-                    or data.get("principalSubdivision"),
-                    "locality": data.get("locality", ""),
-                    "principal_subdivision": data.get("principalSubdivision", ""),
-                    "country_name": data.get("countryName", ""),
-                    "country_code": data.get("countryCode", ""),
-                }
-            else:
+            if response.status_code != 200:
                 return {}
 
-        except Exception as e:
-            self.stdout.write(f"Geocoding failed: {e}")
+            data = response.json()
+
+            return {
+                "city": data.get("city")
+                or data.get("locality")
+                or data.get("principalSubdivision"),
+                "locality": data.get("locality", ""),
+                "principal_subdivision": data.get("principalSubdivision", ""),
+                "country_name": data.get("countryName", ""),
+                "country_code": data.get("countryCode", ""),
+            }
+
+        except Exception:
             return {}
