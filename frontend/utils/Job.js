@@ -1,5 +1,8 @@
 
 
+import { COUNTRY_BY_CODE } from "./Country.js";
+
+
 /**
  * Represents a job given by the backend API.
  */
@@ -10,28 +13,30 @@ export default class Job {
      * @param {object} data 
      */
     constructor(data) {
-        this.id = parseInt(data["id"])
-        this.adzuna_id = data["adzuna_id"]
+        this.id = parseInt(data["id"]);
+        this.adzuna_id = data["adzuna_id"];
 
-        this.title = data["title"]
-        this.company = data["company_display_name"]
-        this.location = data["location_display_name"]
-        this.location_areas = data["location_area"]
-        this.city = data["enriched_city"]
-        this.country = data["enriched_country_name"]
-        this.countryCode = data["enriched_country_code"]
+        this.title = data["title"];
+        this.company = data["company_display_name"];
+        this.location = data["location_display_name"];
+        this.location_areas = data["location_area"];
+        this.city = data["enriched_city"];
         
-        const clean_float = number => number instanceof String ? parseFloat(number) : 0;
-        this.salaryMin = clean_float(data["salary_min"])
-        this.salaryMax = clean_float(data["salary_max"])
+        // Properly get the country name.
+        this.countryCode = data["enriched_country_code"];
+        this.country = COUNTRY_BY_CODE[this.countryCode.toLowerCase()];
         
-        this.contractType = data["contract_type"]
-        this.category = data["category_label"]
-        this.description = data["description"]
-        this.redirect_url = data["redirect_url"]
-        this.created = new Date(data["created"])
+        const clean_float = number => number === null ? null : parseFloat(number);
+        this.salaryMin = clean_float(data["salary_min"]);
+        this.salaryMax = clean_float(data["salary_max"]);
         
-        this.tags = []
+        this.contractType = data["contract_type"];
+        this.category = data["category_label"];
+        this.description = data["description"];
+        this.redirect_url = data["redirect_url"];
+        this.created = new Date(data["created"]);
+        
+        this.tags = [];
     }
     
     /**
