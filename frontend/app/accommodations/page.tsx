@@ -1,90 +1,12 @@
 'use client';
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import SalaryDropdown, { SALARY_RANGES } from '../components/SalaryDropdown'
 import { getFlag } from '../components/Countries'
 
-// ── Types ────────────────────────────────────────────────────────────────────
-type Accommodation = {
-  id: number
-  name: string
-  city: string
-  country: string
-  priceMin: number
-  priceMax: number
-  description: string
-  type: string
-}
+import Accommodation from '@/utils/Accommodation';
+import backend from '@/utils/Backend';
 
-// ── Mock accommodations ───────────────────────────────────────────────────────
-const ACCOMMODATIONS: Accommodation[] = [
-  {
-    id: 1,
-    name: 'City Center Studio',
-    city: 'Manila',
-    country: 'Philippines',
-    priceMin: 8000,
-    priceMax: 12000,
-    description:
-      'A cozy furnished studio in the heart of Makati. Walking distance to major business districts, restaurants, and public transport. Utilities included.',
-    type: 'Studio',
-  },
-  {
-    id: 2,
-    name: 'BGC Serviced Apartment',
-    city: 'Manila',
-    country: 'Philippines',
-    priceMin: 18000,
-    priceMax: 35000,
-    description:
-      'Modern serviced apartment in Bonifacio Global City. Fully furnished with gym, pool, and 24/7 concierge. Ideal for professionals relocating for work.',
-    type: 'Apartment',
-  },
-  {
-    id: 3,
-    name: 'Shared House – Davao Center',
-    city: 'Davao',
-    country: 'Philippines',
-    priceMin: 5000,
-    priceMax: 8000,
-    description:
-      'Affordable shared housing near downtown Davao. Private room with shared common areas, fast WiFi, and a friendly community of working professionals.',
-    type: 'Shared',
-  },
-  {
-    id: 4,
-    name: 'Kensington 1BR Flat',
-    city: 'London',
-    country: 'United Kingdom',
-    priceMin: 80000,
-    priceMax: 120000,
-    description:
-      'Bright one-bedroom flat in Kensington. Recently renovated, close to the tube, and within walking distance of Hyde Park. Available immediately.',
-    type: 'Flat',
-  },
-  {
-    id: 5,
-    name: 'East London Studio',
-    city: 'London',
-    country: 'United Kingdom',
-    priceMin: 50000,
-    priceMax: 75000,
-    description:
-      'Compact studio in vibrant Shoreditch. Great transport links, surrounded by cafes, co-working spaces, and creative studios.',
-    type: 'Studio',
-  },
-  {
-    id: 6,
-    name: 'Mitte Furnished Apartment',
-    city: 'Berlin',
-    country: 'Germany',
-    priceMin: 20000,
-    priceMax: 40000,
-    description:
-      'Fully furnished apartment in Berlin-Mitte. Flexible lease terms, modern kitchen, high-speed internet. Perfect for tech professionals.',
-    type: 'Apartment',
-  },
-]
 
 const PRICE_RANGES = [
   { label: 'Any Price', min: 0, max: Infinity },
@@ -95,7 +17,11 @@ const PRICE_RANGES = [
 ]
 
 // ── Accommodation card ────────────────────────────────────────────────────────
-function AccommodationCard({ item }: { item: Accommodation }) {
+function AccommodationCard({ item, city, country }: { 
+  item: Accommodation,
+  city: string,
+  country: string,
+}) {
   return (
     <article className="
       group relative
@@ -105,7 +31,17 @@ function AccommodationCard({ item }: { item: Accommodation }) {
       transition-all duration-200
       hover:shadow-xl hover:shadow-black/30
       cursor-pointer
-    ">
+    " onClick={() => {
+      /**
+       * Opens the link of the {@link Accommodation} object provided by the
+       * {@link item.url} variable in another tab.
+       * 
+       * Do NOT open the link in the same tab. The React state will be lost once
+       * the user leaves the website. Going back to the website from the accommodation
+       * link will result to an error.
+       */
+      window.open(item.url, "_blank", "noopener,noreferrer")
+    }}>
       <div className="absolute left-0 top-4 bottom-4 w-0.5 rounded-full bg-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
 
       <div className="flex items-start justify-between gap-4">
@@ -118,12 +54,12 @@ function AccommodationCard({ item }: { item: Accommodation }) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
             </svg>
-            <span className="text-xs text-slate-500">{getFlag(item.country)} {item.city}, {item.country}</span>
+            <span className="text-xs text-slate-500">{getFlag(country)} {city}, {country}</span>
           </div>
         </div>
         <div className="flex-shrink-0 text-right">
           <span className="text-sm font-semibold text-amber-400">
-            ₱{item.priceMin.toLocaleString()} – ₱{item.priceMax.toLocaleString()}
+            {item.price}
           </span>
           <p className="text-[10px] text-slate-600 mt-0.5">per month</p>
         </div>
@@ -135,7 +71,7 @@ function AccommodationCard({ item }: { item: Accommodation }) {
 
       <div className="flex items-center gap-2 mt-4">
         <span className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-medium text-slate-400">
-          {item.type}
+          {item.rating === null ? "No Rating" : `${item.rating} out of 5`}
         </span>
         <span className="ml-auto text-xs text-slate-600 group-hover:text-amber-500 transition-colors flex items-center gap-1">
           View listing
@@ -154,29 +90,71 @@ export default function AccommodationsPage() {
   const searchParams = useSearchParams()
 
   // Job details passed via query params from JobPage
-  const jobTitle   = searchParams.get('jobTitle') ?? 'Job Position'
+  const jobTitle = searchParams.get('jobTitle') ?? 'Job Position'
   const jobCompany = searchParams.get('jobCompany') ?? 'Company Name'
-  const jobCity    = searchParams.get('jobCity') ?? 'Job City'
+  const jobCity = searchParams.get('jobCity') ?? 'Job City'
   const jobCountry = searchParams.get('jobCountry') ?? 'Job Country'
   const jobSalaryMin = Number(searchParams.get('jobSalaryMin') ?? 10000)
   const jobSalaryMax = Number(searchParams.get('jobSalaryMax') ?? 100000)
   const jobDescription = searchParams.get('jobDescription') ?? ''
-  const jobTags    = searchParams.get('jobTags')?.split(',') ?? []
+  const jobTags = searchParams.get('jobTags')?.split(',') ?? []
 
   // Accommodation filters — city pre-filled from job, country locked
   const [cityQuery, setCityQuery] = useState(jobCity)
   const [accomQuery, setAccomQuery] = useState('')
   const [priceRange, setPriceRange] = useState(PRICE_RANGES[0].label)
 
+  /**
+   * The {@link accommodation} variable handles the original list of accommodations 
+   * retrieved from the backend API, while the {@link filteredAccommodations} variable 
+   * just filters the accommodations found in the {@link accommodations} variable.
+   * 
+   * You can think about this like caching. The results of the backend API are 
+   * cached in the {@link accommodations} variable.
+   */
+  const [accommodations, setAccommodations] = useState([] as Accommodation[]);
+  const [filteredAccommodations, setFilteredAccommodations] = useState([] as Accommodation[]);
+
   const activePrice = PRICE_RANGES.find((r) => r.label === priceRange) ?? PRICE_RANGES[0]
 
-  const filtered = ACCOMMODATIONS.filter((item) => {
-    const matchCountry = item.country === jobCountry
-    const matchCity    = item.city.toLowerCase().includes(cityQuery.toLowerCase())
-    const matchName    = item.name.toLowerCase().includes(accomQuery.toLowerCase())
-    const matchPrice   = item.priceMax >= activePrice.min && item.priceMin <= activePrice.max
-    return matchCountry && matchCity && matchName && matchPrice
-  })
+  /**
+   * Determines if the {@link Accommodation} object satisfies the
+   * filters set by the user.
+   *
+   * @param {Accommodation} accommodation The {@link Accommodation} object to be checked.
+   * @returns {boolean} The value true if it satisfies the filters;
+   *    the value false otherwise.
+   */
+  const is_relevant_accommodation = (accommodation: Accommodation) => {
+    const matchName = accomQuery === "" || accommodation.name.toLowerCase().includes(accomQuery.toLowerCase());
+
+    // TODO: Figure out how to properly filter price.
+    // const matchPrice = activePrice.label === "Any Price";
+
+    return matchName;
+  }
+  
+  /**
+   * Updates the list of filtered accommodations based on the given filters.
+   * 
+   * @param {Accommodation[]} accommodations The array of {@link Accommodation} 
+   *    objects to be filtered.
+   */
+  const updateFilteredAccommodations = (accommodations: Accommodation[]) => {
+    const filteredAccommodations = accommodations.filter(is_relevant_accommodation);
+    setFilteredAccommodations(filteredAccommodations);
+  }
+
+  // This calls the backend API once for initializing the accommodations.
+  useEffect(() => {
+    const accommodationsPromise = backend.accommodationsFrom(cityQuery);
+    
+    accommodationsPromise
+      .then(accommodations => {
+        setAccommodations(accommodations);
+        updateFilteredAccommodations(accommodations);
+      })
+  }, [])  // Do NOT remove the empty array. This prevents multiple calls to the backend each second.
 
   return (
     <main className="relative min-h-screen bg-slate-950 overflow-hidden px-6 py-12">
@@ -355,7 +333,7 @@ export default function AccommodationsPage() {
               shadow-lg shadow-amber-500/20
               transition-all duration-150 active:scale-95
               flex-shrink-0
-            ">
+            " onClick={() => { updateFilteredAccommodations(accommodations); }}>
               Find
             </button>
           </div>
@@ -397,7 +375,7 @@ export default function AccommodationsPage() {
             Accommodations near {jobCity}
           </p>
           <span className="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-400">
-            {filtered.length} listing{filtered.length !== 1 ? 's' : ''}
+            {filteredAccommodations.length} listing{filteredAccommodations.length !== 1 ? 's' : ''}
           </span>
         </div>
 
@@ -405,7 +383,7 @@ export default function AccommodationsPage() {
 
         {/* ── Accommodation listings ── */}
         <div className="flex flex-col gap-4">
-          {filtered.length === 0 ? (
+          {filteredAccommodations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
               <svg className="w-10 h-10 text-slate-700" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
@@ -419,7 +397,7 @@ export default function AccommodationsPage() {
               </button>
             </div>
           ) : (
-            filtered.map((item) => <AccommodationCard key={item.id} item={item} />)
+            filteredAccommodations.map((item) => <AccommodationCard key={item.id} item={item} city={jobCity} country={jobCountry} />)
           )}
         </div>
 

@@ -28,6 +28,16 @@ function JobCard({ job }: { job: Job }) {
     router.push(`/accommodations?${params.toString()}`)
   }
 
+  let salary: string
+  if (job.salaryMin === null && job.salaryMax === null)
+    salary = `Not specified`;
+  else if (job.salaryMin === null)
+    salary = `Max: ₱${job.salaryMax!.toLocaleString()}`;
+  else if (job.salaryMax === null)
+    salary = `Min: ₱${job.salaryMin!.toLocaleString()}`;
+  else
+    salary = `₱${job.salaryMin.toLocaleString()} – ₱${job.salaryMax.toLocaleString()}`;
+
   return (
     <article
       onClick={handleClick}
@@ -65,7 +75,7 @@ function JobCard({ job }: { job: Job }) {
         {/* Right: salary */}
         <div className="flex-shrink-0 text-right">
           <span className="text-sm font-semibold text-amber-400">
-            ₱{job.salaryMin.toLocaleString()} – ₱{job.salaryMax.toLocaleString()}
+            {salary}
           </span>
         </div>
       </div>
@@ -108,12 +118,11 @@ export default function JobPage() {
 
   const [titleQuery, setTitleQuery] = useState(searchParams.get('q') ?? '')
   const [cityQuery, setCityQuery] = useState('')
-  const [country, setCountry] = useState('All Countries')
   const [salaryRange, setSalaryRange] = useState(SALARY_RANGES[0].label)
 
   /**
    * The {@link jobs} variable handles the original list of jobs retrieved from
-   * the database, while the {@link filteredJobs} variable just filters the jobs
+   * the backend API, while the {@link filteredJobs} variable just filters the jobs
    * found in the {@link jobs} variable.
    * 
    * You can think about this like caching. The results of the backend API are 
@@ -122,30 +131,92 @@ export default function JobPage() {
   const [jobs, setJobs] = useState([] as Job[])
   const [filteredJobs, setFilteredJobs] = useState([] as Job[])
 
+  /**
+   * The {@link country} variable keeps track of the currently set country
+   * in the filters. On the other hand, the {@link previousCountry} variable
+   * keeps the country of the jobs in the {@link jobs} variable.
+   *
+   * This is necessary because we only call the backend API when we change
+   * the "country" filter, press the "Find" button, AND the previous jobs
+   * array has a different "country" than the new one.
+   * 
+   * Thus, this is done for caching purposes.
+   */
+  const initialCountry = "All Countries";
+  const [country, setCountry] = useState(initialCountry);
+  const [previousCountry, setPreviousCountry] = useState(initialCountry);
+
   const activeSalary = SALARY_RANGES.find((r) => r.label === salaryRange) ?? SALARY_RANGES[0]
   
 
   /**
    * Determines if the {@link Job} object satisfies the
    * filters set by the user.
-   * @param job The {@link Job} object to be checked.
-   * @returns The value true if it satisfies the filters;
+   *
+   * @param {Job} job The {@link Job} object to be checked.
+   * @returns {boolean} The value true if it satisfies the filters;
    *    the value false otherwise.
    */
   const is_relevant_job = (job: Job) => {
-    const matchTitle = job.title.toLowerCase().includes(titleQuery.toLowerCase())
-    const matchCity = job.city.toLowerCase().includes(cityQuery.toLowerCase())
+    const matchTitle = titleQuery === "" || job.title.toLowerCase().includes(titleQuery.toLowerCase())
+    const matchCity = cityQuery === "" || job.city.toLowerCase().includes(cityQuery.toLowerCase())
     const matchCountry = country === 'All Countries' || job.country === country
-    const matchSalary = job.salaryMax >= activeSalary.min && job.salaryMin <= activeSalary.max
+    const matchSalary = activeSalary.label === 'Any Salary' || (
+      job.salaryMax !== null 
+      && job.salaryMin !== null
+      && job.salaryMax >= activeSalary.min 
+      && job.salaryMin <= activeSalary.max
+    )
+
     return matchTitle && matchCity && matchCountry && matchSalary
   }
   
   /**
    * Updates the list of filtered jobs based on the given filters.
+   * 
+   * @param {Job[]} jobs The array of {@link Job} objects to be filtered.
    */
-  const updateFilteredJobs = () => {
+  const updateFilteredJobs = (jobs: Job[]) => {
     const filteredJobs = jobs.filter(is_relevant_job)
     setFilteredJobs(filteredJobs)
+  }
+
+  /**
+   * Updates the {@link jobs} and {@link filteredJobs} variables handled
+   * by React.
+   * 
+   * @param {string} country The country to be searched for jobs.
+   */
+  const updateJobArraysBasedOnCountry = (country: string) => {
+    let jobsPromise: Promise<Job[]>
+    
+    switch(country) {
+      case "United States of America":
+        jobsPromise = backend.jobsFromUSA();
+        break;
+      case "United Kingdom":
+        jobsPromise = backend.jobsFromUK();
+        break;
+      case "Canada":
+        jobsPromise = backend.jobsFromCanada();
+        break;
+      case "Germany":
+        jobsPromise = backend.jobsFromGermany();
+        break;
+      case "France":
+        jobsPromise = backend.jobsFromFrance();
+        break;
+      default:
+        jobsPromise = backend.jobs()
+    }
+
+    // Update all the jobs arrays.
+    jobsPromise
+      .then(jobs => {
+        setJobs(jobs);
+        updateFilteredJobs(jobs);
+        // alert(`Found ${jobs.length} jobs in ${country}.`);
+      })
   }
   
   /**
@@ -166,12 +237,12 @@ export default function JobPage() {
     jobsPromise
       .then(jobs => {
         if (jobs === null)
-          throw new Error("Backend API returned null instead of a list of jobs.")
-        setJobs(jobs)
-        updateFilteredJobs()
+          throw new Error("Backend API returned null instead of a list of jobs.");
+        setJobs(jobs);
+        updateFilteredJobs(jobs);
       })
       .catch(error => {
-        console.log(error)
+        console.log(error);
       })
   }, []);   // Do NOT remove the empty array. This avoids infinite loop (and thus, infinite API calls.)
 
@@ -250,7 +321,15 @@ export default function JobPage() {
             shadow-lg shadow-amber-500/20
             transition-all duration-150 active:scale-95
             flex-shrink-0
-          " onClick={() => { updateSearchParams(); updateFilteredJobs() }}>
+          " onClick={() => { 
+              updateSearchParams(); 
+              if (previousCountry !== country) {
+                setPreviousCountry(country);
+                updateJobArraysBasedOnCountry(country)
+              } else {
+                updateFilteredJobs(jobs);
+              }
+            }}>
             Find
           </button>
         </div>
@@ -294,7 +373,12 @@ export default function JobPage() {
               </svg>
               <p className="text-slate-500 text-sm">No jobs match your filters.</p>
               <button
-                onClick={() => { setTitleQuery(''); setCityQuery(''); setCountry('All Countries'); setSalaryRange(SALARY_RANGES[0].label) }}
+                onClick={() => { 
+                  setTitleQuery('');
+                  setCityQuery('');
+                  setCountry('All Countries');
+                  setSalaryRange(SALARY_RANGES[0].label);
+                }}
                 className="text-amber-400 text-xs hover:text-amber-300 underline underline-offset-2 transition-colors"
               >
                 Clear all filters
